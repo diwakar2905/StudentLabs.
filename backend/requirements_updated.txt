@@ -9,6 +9,3 @@ openai
 pydantic
 python-multipart
 sqlalchemy
-redis
-celery
-email-validator
