@@ -10,6 +10,7 @@ from tasks.generation_tasks import generate_assignment_async, generate_presentat
 from celery_app import celery_app
 from routes.auth import get_current_user
 from ai_engine.assignment_builder import build_assignment
+from ai_engine.ppt_builder import build_presentation
 
 router = APIRouter()
 
@@ -147,7 +148,7 @@ async def generate_ppt(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Generate presentation for a project"""
+    """Generate presentation from assignment for a project"""
     project = db.query(Project).filter(
         Project.id == project_id,
         Project.user_id == current_user.id
@@ -156,61 +157,28 @@ async def generate_ppt(
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
-    # Get assignment content if available
+    # Get assignment content - this is required for PPT generation
     assignment = db.query(Assignment).filter(
         Assignment.project_id == project_id
     ).first()
     
-    # Generate presentation slides (mock AI call)
-    slides = [
-        {
-            "slide_number": 1,
-            "title": project.topic,
-            "layout": "title",
-            "content": "Introduction and Overview",
-            "speaker_notes": f"Welcome to this presentation on {project.topic}. Today we'll explore key concepts and findings."
-        },
-        {
-            "slide_number": 2,
-            "title": "Key Concepts",
-            "layout": "bullet",
-            "content": [
-                "Definition and scope of the topic",
-                "Historical context",
-                "Recent developments"
-            ],
-            "speaker_notes": "These are the foundational concepts we need to understand."
-        },
-        {
-            "slide_number": 3,
-            "title": "Literature Review",
-            "layout": "bullet",
-            "content": [
-                "Analysis of {} research papers".format(len(project.papers)) if project.papers else "Current research landscape",
-                "Key findings from the literature",
-                "Common themes and patterns"
-            ],
-            "speaker_notes": "Recent research in this field has revealed important insights."
-        },
-        {
-            "slide_number": 4,
-            "title": "Key Findings",
-            "layout": "bullet",
-            "content": [
-                "Main discovery 1",
-                "Main discovery 2",
-                "Main discovery 3"
-            ],
-            "speaker_notes": "These findings have significant implications for the field."
-        },
-        {
-            "slide_number": 5,
-            "title": "Conclusion",
-            "layout": "title",
-            "content": "Summary and Future Directions",
-            "speaker_notes": "Thank you for your attention. Let's open the floor for questions."
-        }
-    ]
+    if not assignment:
+        raise HTTPException(
+            status_code=400,
+            detail="Assignment must be generated before creating presentation. "
+                   "Generate assignment first using /generate/{project_id}/assignment"
+        )
+    
+    # Use PPT Builder to convert assignment to slides
+    presentation_data = build_presentation(project.topic, assignment.content)
+    
+    if presentation_data.get("error"):
+        raise HTTPException(status_code=400, detail=presentation_data["error"])
+    
+    slides = presentation_data.get("slides", [])
+    
+    if not slides:
+        raise HTTPException(status_code=400, detail="Failed to generate slides from assignment")
     
     # Save or update presentation
     existing_ppt = db.query(Presentation).filter(
@@ -218,11 +186,13 @@ async def generate_ppt(
     ).first()
     
     if existing_ppt:
-        existing_ppt.slides_json = slides
+        existing_ppt.slides_json = json.dumps(slides)
+        existing_ppt.assignment_id = assignment.id
     else:
         presentation = Presentation(
             project_id=project_id,
-            slides_json=slides
+            assignment_id=assignment.id,
+            slides_json=json.dumps(slides)
         )
         db.add(presentation)
     
@@ -231,9 +201,11 @@ async def generate_ppt(
     return {
         "status": "success",
         "project_id": project_id,
+        "assignment_id": assignment.id,
         "slides_count": len(slides),
         "slides": slides,
-        "message": "Presentation generated successfully"
+        "metadata": presentation_data.get("metadata", {}),
+        "message": "Presentation generated from assignment successfully"
     }
 
 @router.put("/{project_id}/ppt")

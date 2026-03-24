@@ -4,6 +4,7 @@ from models import Project, Assignment, Presentation, Paper
 from datetime import datetime
 import json
 from ai_engine.assignment_builder import build_assignment
+from ai_engine.ppt_builder import build_presentation
 
 @celery_app.task(bind=True, max_retries=3)
 def generate_assignment_async(self, project_id: int):
@@ -64,42 +65,34 @@ def generate_assignment_async(self, project_id: int):
 
 @celery_app.task(bind=True, max_retries=3)
 def generate_presentation_async(self, project_id: int):
-    """Async task to generate presentation"""
+    """Async task to generate presentation from assignment"""
     db = SessionLocal()
     try:
         project = db.query(Project).filter(Project.id == project_id).first()
         if not project:
             return {"error": "Project not found", "project_id": project_id}
         
-        papers = db.query(Paper).filter(Paper.project_id == project_id).all()
+        # Get assignment content - required for PPT generation
+        assignment = db.query(Assignment).filter(
+            Assignment.project_id == project_id
+        ).first()
         
-        slides = [
-            {
-                "slide_number": 1,
-                "title": project.topic,
-                "layout": "title",
-                "content": "Introduction and Overview",
-                "speaker_notes": f"Welcome to this presentation on {project.topic}."
-            },
-            {
-                "slide_number": 2,
-                "title": "Literature Review",
-                "layout": "bullet",
-                "content": [
-                    f"Analysis of {len(papers)} research papers",
-                    "Key findings from the literature",
-                    "Common themes and patterns"
-                ],
-                "speaker_notes": "Recent research in this field has revealed important insights."
-            },
-            {
-                "slide_number": 3,
-                "title": "Conclusion",
-                "layout": "title",
-                "content": "Summary and Future Directions",
-                "speaker_notes": "Thank you for your attention."
+        if not assignment:
+            return {
+                "error": "Assignment not found. Generate assignment first before creating presentation.",
+                "project_id": project_id
             }
-        ]
+        
+        # Use PPT Builder to convert assignment to slides
+        presentation_data = build_presentation(project.topic, assignment.content)
+        
+        if presentation_data.get("error"):
+            return {"error": presentation_data["error"], "project_id": project_id}
+        
+        slides = presentation_data.get("slides", [])
+        
+        if not slides:
+            return {"error": "No slides generated from assignment", "project_id": project_id}
         
         # Save presentation
         existing_ppt = db.query(Presentation).filter(
@@ -107,11 +100,13 @@ def generate_presentation_async(self, project_id: int):
         ).first()
         
         if existing_ppt:
-            existing_ppt.slides_json = slides
+            existing_ppt.slides_json = json.dumps(slides)
+            existing_ppt.assignment_id = assignment.id
         else:
             presentation = Presentation(
                 project_id=project_id,
-                slides_json=slides
+                assignment_id=assignment.id,
+                slides_json=json.dumps(slides)
             )
             db.add(presentation)
         
@@ -120,7 +115,9 @@ def generate_presentation_async(self, project_id: int):
         return {
             "status": "completed",
             "project_id": project_id,
-            "slides_count": len(slides)
+            "slides_count": len(slides),
+            "assignment_id": assignment.id,
+            "metadata": presentation_data.get("metadata", {})
         }
     
     except Exception as exc:

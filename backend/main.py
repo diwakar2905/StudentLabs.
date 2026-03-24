@@ -56,3 +56,30 @@ async def serve_dashboard():
 @app.get("/api")
 def api_info():
     return {"message": "Welcome to StudentLabs API"}
+
+@app.get("/generated/{filename}")
+async def download_generated_file(filename: str):
+    """Download generated PDF or PPTX files"""
+    # Security: validate filename to prevent directory traversal
+    if ".." in filename or "/" in filename or "\\" in filename:
+        return {"error": "Invalid filename"}
+    
+    file_path = f"generated/{filename}"
+    
+    # Check if file exists
+    if not os.path.exists(file_path):
+        return {"error": "File not found"}
+    
+    # Determine media type based on file extension
+    if filename.endswith(".pdf"):
+        media_type = "application/pdf"
+    elif filename.endswith(".pptx"):
+        media_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    else:
+        media_type = "application/octet-stream"
+    
+    return FileResponse(
+        file_path,
+        media_type=media_type,
+        filename=filename
+    )

@@ -21,12 +21,16 @@ Assignment Structure (Always follows this format):
 
 from typing import List, Dict, Any
 from dataclasses import dataclass
+import logging
 from ai_engine.generator import (
     generate_abstract,
     generate_introduction,
     generate_discussion,
     generate_conclusion
 )
+from ai_engine.summarizer import summarize_abstract
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -160,7 +164,7 @@ class AssignmentBuilder:
         return intro
 
     def _generate_literature_review(self) -> str:
-        """Generate comprehensive literature review section"""
+        """Generate comprehensive literature review section with summarized abstracts"""
         review = f"""# Literature Review
 
 ## Overview
@@ -171,12 +175,26 @@ The literature on {self.topic} comprises diverse perspectives, methodologies, an
 
 """
         for idx, paper in enumerate(self.papers, 1):
+            # Get summarized abstract for better quality
+            abstract = paper.abstract if hasattr(paper, 'abstract') else paper.get('abstract', '')
+            
+            # Summarize if abstract is long (improves readability)
+            if len(abstract) > 300:
+                try:
+                    summary = summarize_abstract(abstract)
+                    logger.debug(f"Summarized abstract for {paper.title[:50]}...")
+                except Exception as e:
+                    logger.warning(f"Failed to summarize, using original: {e}")
+                    summary = abstract
+            else:
+                summary = abstract
+            
             review += f"""### {idx}. {paper.title}
 
 **Authors:** {paper.authors}
 **Year:** {paper.year}
 
-**Summary:** {paper.abstract}
+**Summary:** {summary}
 
 """
 
