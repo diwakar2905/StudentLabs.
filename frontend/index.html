@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudentLabs - Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <!-- Auth Screens (Hidden by default) -->
+    <div id="auth-container" class="auth-container hidden">
+        <!-- Login Form -->
+        <div id="login-screen" class="auth-screen active">
+            <div class="auth-card">
+                <div class="auth-header">
+                    <h1>StudentLabs</h1>
+                    <p>Login to your account</p>
+                </div>
+                <form id="login-form" class="auth-form">
+                    <div class="form-group">
+                        <label for="login-email">Email</label>
+                        <input type="email" id="login-email" placeholder="you@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="login-password">Password</label>
+                        <input type="password" id="login-password" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Login</button>
+                </form>
+                <p class="auth-switch">Don't have an account? <a href="#" onclick="switchAuth('register')">Sign up</a></p>
+            </div>
+        </div>
+
+        <!-- Register Form -->
+        <div id="register-screen" class="auth-screen">
+            <div class="auth-card">
+                <div class="auth-header">
+                    <h1>StudentLabs</h1>
+                    <p>Create a new account</p>
+                </div>
+                <form id="register-form" class="auth-form">
+                    <div class="form-group">
+                        <label for="register-name">Full Name</label>
+                        <input type="text" id="register-name" placeholder="John Doe" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-email">Email</label>
+                        <input type="email" id="register-email" placeholder="you@example.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password">Password</label>
+                        <input type="password" id="register-password" placeholder="••••••••" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="register-password-confirm">Confirm Password</label>
+                        <input type="password" id="register-password-confirm" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Account</button>
+                </form>
+                <p class="auth-switch">Already have an account? <a href="#" onclick="switchAuth('login')">Login</a></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Dashboard (Hidden by default) -->
+    <div id="dashboard-container" class="dashboard-container hidden">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>StudentLabs</h2>
+                <button class="sidebar-close" onclick="toggleSidebar()">✕</button>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-page="dashboard">
+                    <span class="icon">📊</span>
+                    <span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-item" data-page="projects">
+                    <span class="icon">📁</span>
+                    <span>Projects</span>
+                </a>
+                <a href="#" class="nav-item" data-page="research">
+                    <span class="icon">🔍</span>
+                    <span>Research</span>
+                </a>
+                <a href="#" class="nav-item" data-page="generate">
+                    <span class="icon">✨</span>
+                    <span>Generate</span>
+                </a>
+                <a href="#" class="nav-item" data-page="export">
+                    <span class="icon">📥</span>
+                    <span>Export</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <button class="btn btn-small" id="logout-btn">Logout</button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="dashboard-header">
+                <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+                <div class="header-title">
+                    <h1>Welcome back, <span id="user-name">User</span></h1>
+                    <p id="header-subtitle">Dashboard</p>
+                </div>
+                <div class="header-user">
+                    <span id="user-email">user@example.com</span>
+                </div>
+            </header>
+
+            <!-- Content Pages -->
+            <section class="content-area">
+                <!-- Dashboard Page -->
+                <div id="dashboard-page" class="page active">
+                    <div class="page-content">
+                        <div class="stats-grid">
+                            <div class="stat-card">
+                                <div class="stat-icon">📊</div>
+                                <h3>Projects</h3>
+                                <p class="stat-value" id="stat-projects">0</p>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">📄</div>
+                                <h3>Tasks</h3>
+                                <p class="stat-value" id="stat-tasks">0</p>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">⏱️</div>
+                                <h3>Time Saved</h3>
+                                <p class="stat-value" id="stat-time">0h</p>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-icon">⭐</div>
+                                <h3>Score</h3>
+                                <p class="stat-value" id="stat-score">0</p>
+                            </div>
+                        </div>
+
+                        <div class="recent-projects">
+                            <h2>Recent Projects</h2>
+                            <div id="recent-projects-list" class="projects-list">
+                                <p class="empty-state">No projects yet. Create one to get started!</p>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary" onclick="showPage('projects')">Create New Project</button>
+                    </div>
+                </div>
+
+                <!-- Projects Page -->
+                <div id="projects-page" class="page">
+                    <div class="page-content">
+                        <div class="page-header">
+                            <h2>Projects</h2>
+                            <button class="btn btn-primary" id="create-project-btn">+ New Project</button>
+                        </div>
+
+                        <div id="projects-list" class="projects-list">
+                            <p class="empty-state">No projects yet. Create one to get started!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Research Page -->
+                <div id="research-page" class="page">
+                    <div class="page-content">
+                        <div class="page-header">
+                            <h2>Research</h2>
+                        </div>
+
+                        <div class="research-interface">
+                            <div class="form-group">
+                                <label for="research-topic">Research Topic</label>
+                                <input type="text" id="research-topic" placeholder="e.g., The Impact of AI on Education">
+                            </div>
+                            <div class="form-group">
+                                <label for="research-keywords">Keywords (comma-separated)</label>
+                                <input type="text" id="research-keywords" placeholder="ai, education, technology">
+                            </div>
+                            <div class="form-group">
+                                <label for="research-depth">Research Depth</label>
+                                <select id="research-depth">
+                                    <option value="basic">Basic</option>
+                                    <option value="intermediate">Intermediate</option>
+                                    <option value="advanced">Advanced</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary" id="start-research-btn">Start Research</button>
+                        </div>
+
+                        <div id="research-results" class="research-results hidden">
+                            <h3>Research Results</h3>
+                            <div id="research-content" class="research-content"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Generate Page -->
+                <div id="generate-page" class="page">
+                    <div class="page-content">
+                        <div class="page-header">
+                            <h2>Generate Content</h2>
+                        </div>
+
+                        <div class="generate-interface">
+                            <div class="form-group">
+                                <label for="generate-type">Content Type</label>
+                                <select id="generate-type">
+                                    <option value="essay">Essay</option>
+                                    <option value="summary">Summary</option>
+                                    <option value="outline">Outline</option>
+                                    <option value="presentation">Presentation</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="generate-topic">Topic</label>
+                                <input type="text" id="generate-topic" placeholder="Enter your topic">
+                            </div>
+                            <div class="form-group">
+                                <label for="generate-requirements">Requirements</label>
+                                <textarea id="generate-requirements" placeholder="Any specific requirements or guidelines"></textarea>
+                            </div>
+                            <button class="btn btn-primary" id="generate-btn">Generate</button>
+                        </div>
+
+                        <div id="generate-results" class="generate-results hidden">
+                            <h3>Generated Content</h3>
+                            <div id="generated-content" class="generated-content"></div>
+                            <button class="btn btn-secondary" id="export-generated-btn">Export</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Export Page -->
+                <div id="export-page" class="page">
+                    <div class="page-content">
+                        <div class="page-header">
+                            <h2>Export Documents</h2>
+                        </div>
+
+                        <div class="export-interface">
+                            <div class="form-group">
+                                <label for="export-project-select">Select Project</label>
+                                <select id="export-project-select">
+                                    <option value="">Choose a project...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="export-format">Export Format</label>
+                                <select id="export-format">
+                                    <option value="pdf">PDF Document</option>
+                                    <option value="docx">Word Document</option>
+                                    <option value="pptx">PowerPoint Presentation</option>
+                                    <option value="html">HTML</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary" id="export-btn">Export Document</button>
+                        </div>
+
+                        <div id="export-status" class="export-status hidden">
+                            <p id="export-message"></p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading-spinner" class="loading-spinner hidden">
+        <div class="spinner"></div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Modal for Project Creation -->
+    <div id="project-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Create New Project</h2>
+                <button class="modal-close" onclick="closeProjectModal()">✕</button>
+            </div>
+            <form id="project-form" class="form">
+                <div class="form-group">
+                    <label for="project-name">Project Name</label>
+                    <input type="text" id="project-name" placeholder="My Awesome Project" required>
+                </div>
+                <div class="form-group">
+                    <label for="project-description">Description</label>
+                    <textarea id="project-description" placeholder="Brief description of your project"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="project-deadline">Deadline</label>
+                    <input type="date" id="project-deadline">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeProjectModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Project</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/static/api.js"></script>
+    <script src="/static/app.js"></script>
+</body>
+</html>
