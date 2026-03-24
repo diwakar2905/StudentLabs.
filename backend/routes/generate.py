@@ -9,6 +9,7 @@ import json
 from tasks.generation_tasks import generate_assignment_async, generate_presentation_async
 from celery_app import celery_app
 from routes.auth import get_current_user
+from ai_engine.assignment_builder import build_assignment
 
 router = APIRouter()
 
@@ -70,98 +71,12 @@ async def generate_assignment(
     if not papers:
         raise HTTPException(status_code=400, detail="No papers found for this project")
     
-    # Generate high-quality assignment with better structure
-    assignment_title = f"Comprehensive Analysis: {project.topic}"
+    # Use AI Engine to generate assignment
+    assignment_data = build_assignment(project.topic, papers)
     
-    # Build literature review section
-    literature_review = f"""### Literature Review
-Based on analysis of {len(papers)} peer-reviewed publications, significant progress has been made in {project.topic}. The research landscape reveals:
-
-**Key Thematic Areas:**
-"""
-    for i, paper in enumerate(papers, 1):
-        literature_review += f"\n{i}. {paper.title} ({paper.authors}, {paper.year})"
-        literature_review += f"\n   - {paper.abstract[:150]}..."
-    
-    # Build full assignment content
-    assignment_content = f"""# {assignment_title}
-
-## Executive Summary
-This assignment synthesizes current research in "{project.topic}" through comprehensive analysis of peer-reviewed literature. The document provides structured insights into methodologies, findings, and future directions in this field.
-
-## 1. Introduction
-The field of {project.topic} has witnessed significant evolution. This analysis examines the current state of research, identifies key findings, and discusses implications for future work.
-
-## 2. {literature_review}
-
-## 3. Methodology Synthesis
-The reviewed papers employ diverse methodological approaches:
-- Empirical research designs
-- Systematic literature reviews
-- Computational modeling
-- Qualitative analysis
-
-## 4. Key Findings
-The research demonstrates:
-1. Significant advancement in understanding core concepts
-2. Novel methodologies improving existing approaches
-3. Practical applications with measurable outcomes
-4. Interdisciplinary connections and implications
-
-## 5. Critical Analysis
-**Strengths of Current Research:**
-- Rigorous methodological approaches
-- Reproducible results across studies
-- Clear practical applications
-
-**Limitations and Gaps:**
-- Need for longitudinal studies
-- Limited interdisciplinary collaboration in some areas
-- Emerging technologies requiring further investigation
-
-## 6. Implications and Recommendations
-Based on the literature review, several recommendations emerge:
-1. Further research into emerging methodologies
-2. Cross-disciplinary collaboration opportunities
-3. Translation of findings into practical applications
-4. Development of standardized assessment frameworks
-
-## 7. Future Directions
-The field shows promise in several areas:
-- Integration of artificial intelligence and machine learning
-- Scalability of current methodologies
-- Real-world implementation strategies
-- Ethical considerations in application
-
-## 8. Conclusion
-The research in {project.topic} demonstrates both maturity and exciting potential for future development. This analysis provides a foundation for continued scholarly investigation and practical application.
-
-## References
-"""
-    
-    # Build citations in proper academic format
-    citations_list = []
-    for paper in papers:
-        citation = f"{paper.authors} ({paper.year}). {paper.title}."
-        if paper.url:
-            citation += f" Retrieved from {paper.url}"
-        citations_list.append(citation)
-        assignment_content += f"\n{citation}\n"
-    
-    citations = {
-        "papers": [
-            {
-                "id": p.paper_id,
-                "title": p.title,
-                "authors": p.authors,
-                "year": p.year,
-                "citation": f"{p.authors} ({p.year}). {p.title}.",
-                "url": p.url
-            }
-            for p in papers
-        ],
-        "count": len(papers)
-    }
+    assignment_title = assignment_data["title"]
+    assignment_content = assignment_data["content"]
+    citations = assignment_data["citations"]
     
    # Save or update assignment
     existing_assignment = db.query(Assignment).filter(
@@ -235,7 +150,7 @@ async def generate_ppt(
     """Generate presentation for a project"""
     project = db.query(Project).filter(
         Project.id == project_id,
-        Project.user_id == user_id
+        Project.user_id == current_user.id
     ).first()
     
     if not project:

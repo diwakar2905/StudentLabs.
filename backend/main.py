@@ -1,5 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from pathlib import Path
+import os
 from routes import auth, research, generate, export, projects, jobs
 from database import init_db
 
@@ -28,6 +32,27 @@ app.include_router(generate.router, prefix="/api/v1/generate", tags=["Generate"]
 app.include_router(export.router, prefix="/api/v1/export", tags=["Export"])
 app.include_router(jobs.router, prefix="/api/v1/jobs", tags=["Jobs"])
 
+# Get paths for frontend files
+root_path = Path(__file__).parent.parent
+frontend_path = root_path / "frontend"
+assets_path = root_path / "assets"
+
+# Mount static directories
+app.mount("/assets", StaticFiles(directory=str(assets_path)), name="assets")
+app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
+
+# Serve landing page at root
 @app.get("/")
-def root():
+async def serve_landing_page():
+    """Serve the landing page at root"""
+    return FileResponse(str(root_path / "index.html"))
+
+# Serve dashboard app
+@app.get("/dashboard")
+async def serve_dashboard():
+    """Serve the dashboard app"""
+    return FileResponse(str(frontend_path / "index.html"))
+
+@app.get("/api")
+def api_info():
     return {"message": "Welcome to StudentLabs API"}

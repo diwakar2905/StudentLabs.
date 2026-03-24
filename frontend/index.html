@@ -164,106 +164,26 @@
                     </div>
                 </div>
 
-                <!-- Research Page -->
-                <div id="research-page" class="page">
-                    <div class="page-content">
-                        <div class="page-header">
-                            <h2>Research</h2>
-                        </div>
-
-                        <div class="research-interface">
-                            <div class="form-group">
-                                <label for="research-topic">Research Topic</label>
-                                <input type="text" id="research-topic" placeholder="e.g., The Impact of AI on Education">
-                            </div>
-                            <div class="form-group">
-                                <label for="research-keywords">Keywords (comma-separated)</label>
-                                <input type="text" id="research-keywords" placeholder="ai, education, technology">
-                            </div>
-                            <div class="form-group">
-                                <label for="research-depth">Research Depth</label>
-                                <select id="research-depth">
-                                    <option value="basic">Basic</option>
-                                    <option value="intermediate">Intermediate</option>
-                                    <option value="advanced">Advanced</option>
-                                </select>
-                            </div>
-                            <button class="btn btn-primary" id="start-research-btn">Start Research</button>
-                        </div>
-
-                        <div id="research-results" class="research-results hidden">
-                            <h3>Research Results</h3>
-                            <div id="research-content" class="research-content"></div>
-                        </div>
+                <!-- Project Detail Page -->
+                <div id="project-detail-page" class="page">
+                    <div class="page-content" id="project-detail-content">
+                        <button class="btn btn-secondary" onclick="showPage('projects')">← Back to Projects</button>
                     </div>
                 </div>
 
-                <!-- Generate Page -->
-                <div id="generate-page" class="page">
-                    <div class="page-content">
-                        <div class="page-header">
-                            <h2>Generate Content</h2>
-                        </div>
-
-                        <div class="generate-interface">
-                            <div class="form-group">
-                                <label for="generate-type">Content Type</label>
-                                <select id="generate-type">
-                                    <option value="essay">Essay</option>
-                                    <option value="summary">Summary</option>
-                                    <option value="outline">Outline</option>
-                                    <option value="presentation">Presentation</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="generate-topic">Topic</label>
-                                <input type="text" id="generate-topic" placeholder="Enter your topic">
-                            </div>
-                            <div class="form-group">
-                                <label for="generate-requirements">Requirements</label>
-                                <textarea id="generate-requirements" placeholder="Any specific requirements or guidelines"></textarea>
-                            </div>
-                            <button class="btn btn-primary" id="generate-btn">Generate</button>
-                        </div>
-
-                        <div id="generate-results" class="generate-results hidden">
-                            <h3>Generated Content</h3>
-                            <div id="generated-content" class="generated-content"></div>
-                            <button class="btn btn-secondary" id="export-generated-btn">Export</button>
-                        </div>
-                    </div>
+                <!-- Research Page (Legacy) -->
+                <div id="research-page" class="page hidden">
+                    <p>Research functionality is integrated in project workflow</p>
                 </div>
 
-                <!-- Export Page -->
-                <div id="export-page" class="page">
-                    <div class="page-content">
-                        <div class="page-header">
-                            <h2>Export Documents</h2>
-                        </div>
+                <!-- Generate Page (Legacy) -->
+                <div id="generate-page" class="page hidden">
+                    <p>Generate functionality is integrated in project workflow</p>
+                </div>
 
-                        <div class="export-interface">
-                            <div class="form-group">
-                                <label for="export-project-select">Select Project</label>
-                                <select id="export-project-select">
-                                    <option value="">Choose a project...</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="export-format">Export Format</label>
-                                <select id="export-format">
-                                    <option value="pdf">PDF Document</option>
-                                    <option value="docx">Word Document</option>
-                                    <option value="pptx">PowerPoint Presentation</option>
-                                    <option value="html">HTML</option>
-                                </select>
-                            </div>
-                            <button class="btn btn-primary" id="export-btn">Export Document</button>
-                        </div>
-
-                        <div id="export-status" class="export-status hidden">
-                            <p id="export-message"></p>
-                        </div>
-                    </div>
+                <!-- Export Page (Legacy) -->
+                <div id="export-page" class="page hidden">
+                    <p>Export functionality is integrated in project workflow</p>
                 </div>
             </section>
         </main>
@@ -277,7 +197,7 @@
     <!-- Toast Notifications -->
     <div id="toast-container" class="toast-container"></div>
 
-    <!-- Modal for Project Creation -->
+    <!-- Project Modal -->
     <div id="project-modal" class="modal hidden">
         <div class="modal-content">
             <div class="modal-header">
@@ -286,22 +206,55 @@
             </div>
             <form id="project-form" class="form">
                 <div class="form-group">
-                    <label for="project-name">Project Name</label>
-                    <input type="text" id="project-name" placeholder="My Awesome Project" required>
+                    <label for="project-name">Project Title</label>
+                    <input type="text" id="project-name" placeholder="e.g., AI in Education" required>
                 </div>
                 <div class="form-group">
-                    <label for="project-description">Description</label>
-                    <textarea id="project-description" placeholder="Brief description of your project"></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="project-deadline">Deadline</label>
-                    <input type="date" id="project-deadline">
+                    <label for="project-description">Topic/Description</label>
+                    <textarea id="project-description" placeholder="Describe your project topic" required></textarea>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" onclick="closeProjectModal()">Cancel</button>
                     <button type="submit" class="btn btn-primary">Create Project</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Research Modal -->
+    <div id="research-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Search Research Papers</h2>
+                <button class="modal-close" onclick="closeResearchModal()">✕</button>
+            </div>
+            <form id="research-search-form" class="form">
+                <div class="form-group">
+                    <label for="research-search-topic">Search Topic</label>
+                    <input type="text" id="research-search-topic" placeholder="e.g., machine learning education" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Search Papers</button>
+            </form>
+            <div id="research-papers-list" class="papers-list"></div>
+            <div id="papers-actions" class="modal-actions" style="margin-top: 20px;">
+                <button type="button" class="btn btn-secondary" onclick="closeResearchModal()">Cancel</button>
+                <button type="button" class="btn btn-primary" id="add-papers-btn">Add Selected Papers</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div id="export-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Export Project</h2>
+                <button class="modal-close" onclick="closeExportModal()">✕</button>
+            </div>
+            <div class="export-options">
+                <button class="btn btn-primary" id="export-pdf-btn" onclick="exportProjectPDF()">📄 Export as PDF</button>
+                <button class="btn btn-primary" id="export-pptx-btn" onclick="exportProjectPPTX()">🎨 Export as PowerPoint</button>
+            </div>
+            <button type="button" class="btn btn-secondary" onclick="closeExportModal()" style="margin-top: 20px; width: 100%;">Cancel</button>
         </div>
     </div>
 

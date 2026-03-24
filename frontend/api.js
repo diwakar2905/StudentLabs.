@@ -1,6 +1,6 @@
 /**
- * API Service Layer
- * Handles all communication with the StudentLabs backend API
+ * StudentLabs API Service Layer
+ * Complete API integration with all backend endpoints
  */
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';
@@ -10,9 +10,6 @@ class APIService {
         this.token = localStorage.getItem('auth_token');
     }
 
-    /**
-     * Generic fetch wrapper with error handling
-     */
     async request(endpoint, options = {}) {
         const url = `${API_BASE_URL}${endpoint}`;
         const headers = {
@@ -43,18 +40,11 @@ class APIService {
         }
     }
 
-    /**
-     * Authentication
-     */
-
+    // ===== AUTHENTICATION =====
     async register(name, email, password) {
         return this.request('/auth/signup', {
             method: 'POST',
-            body: JSON.stringify({
-                name,
-                email,
-                password,
-            }),
+            body: JSON.stringify({ name, email, password }),
         });
     }
 
@@ -77,25 +67,11 @@ class APIService {
         this.token = null;
     }
 
-    /**
-     * Users
-     */
-
     async getCurrentUser() {
         return this.request('/users/me');
     }
 
-    async updateProfile(data) {
-        return this.request('/users/me', {
-            method: 'PUT',
-            body: JSON.stringify(data),
-        });
-    }
-
-    /**
-     * Projects
-     */
-
+    // ===== PROJECTS =====
     async getProjects() {
         return this.request('/projects');
     }
@@ -104,13 +80,10 @@ class APIService {
         return this.request(`/projects/${projectId}`);
     }
 
-    async createProject(data) {
+    async createProject(title, topic) {
         return this.request('/projects', {
             method: 'POST',
-            body: JSON.stringify({
-                title: data.name,
-                topic: data.description,
-            }),
+            body: JSON.stringify({ title, topic }),
         });
     }
 
@@ -127,66 +100,116 @@ class APIService {
         });
     }
 
-    /**
-     * Research
-     */
+    async getProjectPapers(projectId) {
+        return this.request(`/projects/${projectId}/papers`);
+    }
 
-    async startResearch(topic, keywords, depth = 'basic') {
-        return this.request('/research', {
+    // ===== RESEARCH =====
+    async searchResearchPapers(topic, projectId = null) {
+        return this.request('/research/search', {
             method: 'POST',
-            body: JSON.stringify({
-                topic,
-                keywords,
-                depth,
-            }),
+            body: JSON.stringify({ topic, project_id: projectId }),
         });
     }
 
-    async getResearchResults(projectId) {
-        return this.request(`/research/${projectId}`);
-    }
-
-    /**
-     * Generate
-     */
-
-    async generateContent(type, topic, requirements = '') {
-        return this.request('/generate', {
+    async addPapersToProject(projectId, papers) {
+        return this.request(`/research/${projectId}/papers/add`, {
             method: 'POST',
-            body: JSON.stringify({
-                type,
-                topic,
-                requirements,
-            }),
+            body: JSON.stringify(papers),
         });
     }
 
-    /**
-     * Export
-     */
-
-    async exportDocument(projectId, format) {
-        return this.request('/export', {
+    async summarizePaper(paperId) {
+        return this.request('/research/summarize', {
             method: 'POST',
-            body: JSON.stringify({
-                project_id: projectId,
-                format,
-            }),
+            body: JSON.stringify({ paper_id: paperId }),
         });
     }
 
-    /**
-     * Jobs (for tracking async tasks)
-     */
-
-    async getJobs() {
-        return this.request('/jobs');
+    // ===== GENERATION =====
+    async generateAssignment(projectId, paperIds = null) {
+        return this.request(`/generate/${projectId}/assignment`, {
+            method: 'POST',
+            body: JSON.stringify({ paper_ids: paperIds }),
+        });
     }
 
-    async getJob(jobId) {
+    async generateAssignmentAsync(projectId) {
+        return this.request(`/generate/${projectId}/assignment-async`, {
+            method: 'POST',
+            body: JSON.stringify({}),
+        });
+    }
+
+    async getAssignment(projectId) {
+        return this.request(`/generate/${projectId}/assignment`);
+    }
+
+    async updateAssignment(projectId, title, content, citations = null) {
+        return this.request(`/generate/${projectId}/assignment`, {
+            method: 'PUT',
+            body: JSON.stringify({ title, content, citations }),
+        });
+    }
+
+    async generatePresentation(projectId, assignmentId = null) {
+        return this.request(`/generate/${projectId}/ppt`, {
+            method: 'POST',
+            body: JSON.stringify({ assignment_id: assignmentId }),
+        });
+    }
+
+    async generatePresentationAsync(projectId) {
+        return this.request(`/generate/${projectId}/ppt-async`, {
+            method: 'POST',
+            body: JSON.stringify({}),
+        });
+    }
+
+    async getPresentation(projectId) {
+        return this.request(`/generate/${projectId}/ppt`);
+    }
+
+    async updatePresentation(projectId, slides) {
+        return this.request(`/generate/${projectId}/ppt`, {
+            method: 'PUT',
+            body: JSON.stringify(slides),
+        });
+    }
+
+    // ===== EXPORT =====
+    async exportToPDF(projectId, assignmentId) {
+        return this.request('/export/pdf', {
+            method: 'POST',
+            body: JSON.stringify({ project_id: projectId, assignment_id: assignmentId }),
+        });
+    }
+
+    async exportToPPTX(projectId, presentationId) {
+        return this.request('/export/pptx', {
+            method: 'POST',
+            body: JSON.stringify({ project_id: projectId, presentation_id: presentationId }),
+        });
+    }
+
+    async getExports(projectId) {
+        return this.request(`/export/${projectId}/downloads`);
+    }
+
+    // ===== JOBS (Async Task Tracking) =====
+    async getJobStatus(jobId) {
         return this.request(`/jobs/${jobId}`);
+    }
+
+    async getJobResult(jobId) {
+        return this.request(`/jobs/${jobId}/result`);
+    }
+
+    async cancelJob(jobId) {
+        return this.request(`/jobs/${jobId}`, {
+            method: 'DELETE',
+        });
     }
 }
 
-// Create global API instance
 const api = new APIService();
