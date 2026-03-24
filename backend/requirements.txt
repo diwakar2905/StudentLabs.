@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-jose[cryptography]
+passlib[bcrypt]
+reportlab
+python-pptx
+httpx
+openai
+pydantic
+python-multipart
