@@ -5,18 +5,26 @@ This module contains the logic for building academic assignments from research p
 
 Architecture:
 1. Input: Topic + Papers (title, authors, abstract, year, URL)
-2. Process: Summarize → Generate Sections → Add Citations → Combine
+2. Process: 
+   - Summarize papers
+   - Index in FAISS for vector search
+   - Retrieve relevant research for each section
+   - Generate sections using RAG (Retrieval-Augmented Generation)
+   - Combine into academic assignment
 3. Output: Complete academic assignment with proper structure
+
+RAG Pipeline:
+Topic → Fetch Papers → Summarize → Index in FAISS → Retrieve Context → Generate with AI → Assignment
 
 Assignment Structure (Always follows this format):
 - Title
-- Abstract
-- Introduction
-- Literature Review
-- Methodology
-- Results / Discussion
-- Conclusion
-- References
+- Abstract (AI-generated using research context)
+- Introduction (AI-generated using research context)
+- Literature Review (From summarized papers)
+- Methodology (From paper data)
+- Results / Discussion (AI-generated using research context)
+- Conclusion (AI-generated using research context)
+- References (From paper metadata)
 """
 
 from typing import List, Dict, Any
@@ -26,9 +34,16 @@ from ai_engine.generator import (
     generate_abstract,
     generate_introduction,
     generate_discussion,
-    generate_conclusion
+    generate_conclusion,
+    generate_section_with_rag
 )
 from ai_engine.summarizer import summarize_abstract
+from ai_engine.retriever import (
+    index_papers,
+    retrieve_relevant_content,
+    build_retrieval_context,
+    clear_index
+)
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +83,14 @@ class AssignmentBuilder:
 
     def build(self) -> Dict[str, Any]:
         """
-        Build complete assignment from papers.
+        Build complete assignment from papers using RAG pipeline.
+        
+        RAG Flow:
+        1. Summarize all papers
+        2. Index papers in FAISS
+        3. Retrieve relevant content for each section
+        4. Generate sections using retrieved context
+        5. Combine all sections
         
         Returns:
             Dictionary with:
@@ -77,37 +99,119 @@ class AssignmentBuilder:
             - citations: List of citations
             - word_count: Approximate word count
             - sections: Dictionary of all sections
+            - rag_used: Boolean indicating RAG was used
         """
         if not self.papers:
             raise ValueError("No papers added. Call add_papers() first.")
 
-        sections = {
-            "title": self._generate_title(),
-            "abstract": self._generate_abstract(),
-            "introduction": self._generate_introduction(),
-            "literature_review": self._generate_literature_review(),
-            "methodology": self._generate_methodology(),
-            "discussion": self._generate_discussion(),
-            "conclusion": self._generate_conclusion(),
-            "references": self._generate_references(),
-        }
-
-        # Combine all sections
-        full_content = self._combine_sections(sections)
-
-        # Extract citations
-        citations = self._extract_citations()
-
-        return {
-            "title": sections["title"],
-            "content": full_content,
-            "sections": sections,
-            "citations": citations,
-            "word_count": len(full_content.split()),
-            "paper_count": len(self.papers),
-        }
+        logger.info(f"🚀 Starting RAG-based assignment generation for: {self.topic}")
+        
+        try:
+            # Step 1: Summarize papers for better context
+            logger.info("Step 1: Summarizing papers...")
+            paper_summaries = []
+            for paper in self.papers:
+                abstract = paper.abstract if hasattr(paper, 'abstract') else paper.get('abstract', '')
+                if len(abstract) > 300:
+                    try:
+                        summary = summarize_abstract(abstract)
+                        paper_summaries.append(summary)
+                        logger.debug(f"Summarized: {(paper.title if hasattr(paper, 'title') else paper.get('title', ''))[:50]}...")
+                    except Exception as e:
+                        logger.warning(f"Could not summarize, using original: {e}")
+                        paper_summaries.append(abstract)
+                else:
+                    paper_summaries.append(abstract)
+            
+            # Step 2 & 3: Index papers and build retrieval context
+            logger.info("Step 2-3: Indexing papers and building retrieval context...")
+            try:
+                clear_index()  # Clear any previous index
+                retrieval_context = build_retrieval_context(self.papers, self.topic)
+                logger.info(f"✅ Indexed {len(self.papers)} papers for retrieval")
+            except Exception as e:
+                logger.warning(f"FAISS indexing unavailable, falling back to paper context: {e}")
+                retrieval_context = "\n\n".join([
+                    f"Paper: {p.title}\nAuthors: {p.authors}\nYear: {p.year}\nAbstract: {p.abstract}"
+                    for p in self.papers
+                ])
+            
+            # Step 4: Generate sections using RAG
+            logger.info("Step 4: Generating assignment sections with RAG...")
+            
+            sections = {
+                "title": self._generate_title(),
+                "abstract": self._generate_abstract_rag(retrieval_context),
+                "introduction": self._generate_introduction_rag(retrieval_context),
+                "literature_review": self._generate_literature_review(),
+                "methodology": self._generate_methodology(),
+                "discussion": self._generate_discussion_rag(retrieval_context),
+                "conclusion": self._generate_conclusion_rag(retrieval_context),
+                "references": self._generate_references(),
+            }
+            
+            logger.info("✅ All sections generated using RAG")
+            
+            # Step 5: Combine all sections
+            full_content = self._combine_sections(sections)
+            
+            # Extract citations
+            citations = self._extract_citations()
+            
+            result = {
+                "title": sections["title"],
+                "content": full_content,
+                "sections": sections,
+                "citations": citations,
+                "word_count": len(full_content.split()),
+                "paper_count": len(self.papers),
+                "rag_used": True,  # Flag indicating RAG was used
+            }
+            
+            logger.info(f"✅ Assignment generation complete ({result['word_count']} words, {result['paper_count']} papers)")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error during RAG assignment generation: {e}")
+            # Fallback to non-RAG generation
+            logger.info("Falling back to non-RAG generation...")
+            return self._build_fallback()
 
     # ============ SECTION GENERATORS ============
+
+    def _generate_abstract_rag(self, retrieval_context: str) -> str:
+        """Generate abstract using RAG with research context"""
+        try:
+            return generate_section_with_rag("abstract", self.topic, retrieval_context)
+        except Exception as e:
+            logger.warning(f"RAG abstract generation failed: {e}")
+            return self._generate_abstract()
+    
+    def _generate_introduction_rag(self, retrieval_context: str) -> str:
+        """Generate introduction using RAG with research context"""
+        try:
+            return generate_section_with_rag("introduction", self.topic, retrieval_context)
+        except Exception as e:
+            logger.warning(f"RAG introduction generation failed: {e}")
+            return self._generate_introduction()
+    
+    def _generate_discussion_rag(self, retrieval_context: str) -> str:
+        """Generate discussion using RAG with research context"""
+        try:
+            return generate_section_with_rag("discussion", self.topic, retrieval_context)
+        except Exception as e:
+            logger.warning(f"RAG discussion generation failed: {e}")
+            return self._generate_discussion()
+    
+    def _generate_conclusion_rag(self, retrieval_context: str) -> str:
+        """Generate conclusion using RAG with research context"""
+        try:
+            return generate_section_with_rag("conclusion", self.topic, retrieval_context)
+        except Exception as e:
+            logger.warning(f"RAG conclusion generation failed: {e}")
+            return self._generate_conclusion()
+
+    # ============ ORIGINAL SECTION GENERATORS (Fallback) ============
 
     def _generate_title(self) -> str:
         """Generate a professional title for the assignment"""
@@ -423,6 +527,34 @@ This systematic review has several limitations:
             "papers": citations,
             "count": len(citations),
             "citation_format": "APA"
+        }
+    
+    def _build_fallback(self) -> Dict[str, Any]:
+        """Fallback: Generate assignment without RAG if retrieval fails"""
+        logger.info("Using fallback generation (non-RAG)...")
+        
+        sections = {
+            "title": self._generate_title(),
+            "abstract": self._generate_abstract(),
+            "introduction": self._generate_introduction(),
+            "literature_review": self._generate_literature_review(),
+            "methodology": self._generate_methodology(),
+            "discussion": self._generate_discussion(),
+            "conclusion": self._generate_conclusion(),
+            "references": self._generate_references(),
+        }
+        
+        full_content = self._combine_sections(sections)
+        citations = self._extract_citations()
+        
+        return {
+            "title": sections["title"],
+            "content": full_content,
+            "sections": sections,
+            "citations": citations,
+            "word_count": len(full_content.split()),
+            "paper_count": len(self.papers),
+            "rag_used": False,  # RAG not used for this attempt
         }
 
 

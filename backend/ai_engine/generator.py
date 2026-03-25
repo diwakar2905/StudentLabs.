@@ -5,33 +5,39 @@ Generates academic text sections using transformer models.
 Supports context-based generation for research-backed content.
 
 Architecture:
-- Load Mistral-7B (instruction-tuned model) once on module import
+- Load Mistral-7B (instruction-tuned model) on first use (lazy loading)
 - Provide context from research papers to ensure relevance
 - Generate sections: abstract, introduction, discussion, conclusion
 """
 
-from transformers import pipeline
 from typing import List, Dict, Optional
 
-# Load text generation model once (cached on first import)
+# Load text generation model once (cached on first use)
 _generator_cache = None
 
 def _get_generator():
     """
     Lazy-load the text generation pipeline.
+    Imports transformers only when first needed (not at module import time).
     Caches the generator to avoid reloading on each call.
     """
     global _generator_cache
     
     if _generator_cache is None:
-        print("🚀 Loading Mistral-7B model (first time only, ~2-3 minutes)...")
-        _generator_cache = pipeline(
-            "text-generation",
-            model="mistralai/Mistral-7B-Instruct",
-            max_new_tokens=500,
-            device=-1  # Use CPU (set to 0 for GPU if available)
-        )
-        print("✅ Model loaded successfully!")
+        try:
+            from transformers import pipeline
+            
+            print("🚀 Loading Mistral-7B model (first time only, ~2-3 minutes)...")
+            _generator_cache = pipeline(
+                "text-generation",
+                model="mistralai/Mistral-7B-Instruct",
+                max_new_tokens=500,
+                device=-1  # Use CPU (set to 0 for GPU if available)
+            )
+            print("✅ Model loaded successfully!")
+        except ImportError as e:
+            print(f"❌ Error importing transformers: {e}")
+            raise RuntimeError("Install with: pip install transformers torch")
     
     return _generator_cache
 
@@ -261,6 +267,86 @@ def generate_with_context(
         return generate_conclusion(topic, paper_context=paper_context, **kwargs)
     else:
         raise ValueError(f"Unknown section type: {section_type}")
+
+
+def generate_section_with_rag(
+    section_type: str,
+    topic: str,
+    research_context: str,
+    max_tokens: int = 500
+) -> str:
+    """
+    Generate a section using RAG (Retrieval-Augmented Generation).
+    
+    This is the core RAG function that uses actual research content
+    to ground AI generation in real academic work.
+    
+    Args:
+        section_type: "abstract", "introduction", "discussion", or "conclusion"
+        topic: Main topic of the assignment
+        research_context: Relevant research content (from retriever)
+        max_tokens: Maximum tokens to generate
+    
+    Returns:
+        Generated section text grounded in research
+    
+    Example:
+        >>> from ai_engine.retriever import build_retrieval_context
+        >>> papers = fetch_arxiv_papers("machine learning", max_results=5)
+        >>> context = build_retrieval_context(papers, "machine learning applications")
+        >>> section = generate_section_with_rag("introduction", "ML in Healthcare", context)
+    """
+    
+    section_instructions = {
+        "abstract": """
+Write a formal academic abstract (150-200 words).
+Include: purpose, methodology from papers, key findings, and conclusion.
+Use technical language appropriate for academic audience.
+Structure: Background, Method, Key Findings, Conclusion.""",
+        
+        "introduction": """
+Write an academic introduction (300-400 words).
+Include: background information, importance of topic, current research trends.
+Discuss research gaps and objectives.
+Start broad and narrow to specific topic.
+Reference the provided research papers.""",
+        
+        "discussion": """
+Write a discussion section (600-800 words).
+Include: implications of research findings, challenges and limitations.
+Compare and contrast different approaches in the papers.
+Discuss practical applications.
+Use critical analysis, not just description.""",
+        
+        "conclusion": """
+Write a formal academic conclusion (300-400 words).
+Summarize main findings and contributions.
+Discuss theoretical and practical implications.
+Suggest future research directions.
+Address limitations of current research.
+End with forward-looking statement."""
+    }
+    
+    instructions = section_instructions.get(section_type.lower(), "")
+    
+    prompt = f"""You are an academic writer. Write a {section_type} for an academic assignment.
+
+Topic: {topic}
+
+Instructions:
+{instructions}
+
+Use the following research information as your primary source of information:
+
+{research_context}
+
+Write in formal academic tone with proper citations.
+Do not use bullet points - write in complete paragraphs.
+Base your content directly on the research provided.
+
+{section_type.title()}:"""
+    
+    return generate_text(prompt, max_tokens=max_tokens)
 
 
 # Module initialization message
